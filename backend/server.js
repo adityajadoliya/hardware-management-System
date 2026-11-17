@@ -528,8 +528,6 @@ app.get('/api/export/csv', (req, res) => {
 });
 
 // Cloud Sync Endpoint (Synchronizes scans captured on Vercel into local SQLite hardware.db and vice-versa)
-const { syncBidirectional, pushSingleMachine } = require('./syncCloud');
-
 app.get('/api/sync-cloud', async (req, res) => {
   try {
     const result = await syncBidirectional();
