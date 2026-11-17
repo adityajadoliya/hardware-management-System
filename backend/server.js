@@ -32,7 +32,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint // that is the code of todays c;ass 
+// Health check endpoint 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), vercel: isVercel });
 });
