@@ -166,9 +166,9 @@ function resolveGlobalMachine(query, rawText = '') {
   }
 
   return {
-    serial_no: resolvedSerial || cleanQuery || 'GS3762838',
+    serial_no: resolvedSerial || (cleanQuery && /^[A-Za-z0-9\-_\/]{5,25}$/.test(cleanQuery) ? cleanQuery.toUpperCase() : ''),
     product_company: resolvedCompany || 'Hikvision',
-    model: resolvedModel || 'DS-KIT302EFWX',
+    model: resolvedModel || (cleanQuery && cleanQuery.startsWith('DS-') ? cleanQuery.toUpperCase() : 'DS-KIT302EFWX'),
     machine_name: resolvedName || 'Access Control & Biometric Terminal',
     found
   };
@@ -329,7 +329,10 @@ export default async function handler(req, res) {
 
       if (method === 'POST') {
         const body = req.body || {};
-        const serial_no = (body.serial_no || `GS${Date.now()}`).trim();
+        const serial_no = (body.serial_no || '').trim();
+        if (!serial_no) {
+          return res.status(400).json({ error: 'Serial number is required' });
+        }
         const product_company = (body.product_company || 'Hikvision').trim();
         const model = (body.model || 'DS-KIT302EFWX').trim();
         const authorised_person = (body.authorised_person || 'Aditya Sharma').trim();

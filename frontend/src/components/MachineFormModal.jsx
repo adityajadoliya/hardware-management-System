@@ -221,7 +221,11 @@ export default function MachineFormModal({
     e.preventDefault();
     setError('');
 
-    const finalSerial = formData.serial_no.trim() || `GS${Math.floor(1000000 + Math.random() * 9000000)}`;
+    const finalSerial = formData.serial_no.trim();
+    if (!finalSerial) {
+      setError('Serial Number is required. Please enter or scan the hardware serial number.');
+      return;
+    }
     const finalCompany = formData.product_company.trim() || 'Hikvision';
     const finalModel = formData.model.trim() || 'DS-KIT302EFWX';
     const finalAuthorised = formData.authorised_person.trim() || localStorage.getItem('last_authorised_person') || 'Aditya Sharma';

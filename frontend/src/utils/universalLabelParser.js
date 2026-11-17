@@ -89,7 +89,7 @@ export function extractGlobalMachineInfo(text) {
 
   // 2. Serial Number
   const serialRegexList = [
-    /(?:S\/N|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#]?\s*([A-Za-z0-9\-_\/]{4,32})/i,
+    /(?:S[\/|\\.]?N|SIN|SM|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#;]?\s*([A-Za-z0-9\-_\/]{4,32})/i,
     /\b(GS\d{6,14})\b/i,
     /\b(SN[-_]?[A-Za-z0-9]{6,22})\b/i,
     /\b(FOC\d{4}[A-Za-z0-9]{4})\b/i
@@ -170,8 +170,33 @@ export function extractGlobalMachineInfo(text) {
 
     if (!manufacturer && lines.length > 0) {
       const firstLine = lines[0].trim();
-      if (/^[A-Z0-9\s&.\-]{3,28}$/.test(firstLine) && !firstLine.includes(':') && !/^(MODEL|SERIAL|WARNING|DANGER|MADE|SPECIFICATION)/i.test(firstLine)) {
+      if (/^[A-Za-z\s&.\-]{3,28}$/.test(firstLine) &&
+          !firstLine.includes(':') &&
+          firstLine.toLowerCase() !== (serialNo || '').toLowerCase() &&
+          firstLine.toLowerCase() !== (modelNo || '').toLowerCase() &&
+          !/^(MODEL|SERIAL|WARNING|DANGER|MADE|SPECIFICATION|SN|S\/N)/i.test(firstLine) &&
+          !/^[A-Z]{1,4}\d{5,15}$/i.test(firstLine)) {
         manufacturer = firstLine;
+      }
+    }
+
+    if (!manufacturer || manufacturer === 'Unknown Manufacturer') {
+      if (/^DS-(?:K|KIT|2CD|7|1)/i.test(modelNo) || /^(?:GS|HK)\d{6,14}/i.test(serialNo)) {
+        manufacturer = 'Hikvision';
+        if (!machineName) machineName = 'Access Control & Biometric Terminal';
+        if (!category) category = 'Security & Biometrics';
+      } else if (/^(?:6ES7|6GK|6AV|SIMATIC)/i.test(modelNo)) {
+        manufacturer = 'Siemens';
+        if (!machineName) machineName = 'SIMATIC S7 Controller (PLC)';
+        if (!category) category = 'Industrial Automation';
+      } else if (/^(?:C9200|C9300|WS-C|CBS|ISR|Catalyst)/i.test(modelNo) || /^FOC\d{4}/i.test(serialNo)) {
+        manufacturer = 'Cisco';
+        if (!machineName) machineName = 'Enterprise Managed Switch';
+        if (!category) category = 'Enterprise Networking';
+      } else if (/^M3BP/i.test(modelNo) || /^3GBA/i.test(serialNo)) {
+        manufacturer = 'ABB';
+        if (!machineName) machineName = 'Industrial Induction Motor';
+        if (!category) category = 'Electric Motors';
       }
     }
   }
@@ -303,7 +328,7 @@ export function extractGlobalMachineInfo(text) {
     technicalSpecs,
     formattedNotes,
     confidence,
-    rawText
+    rawText: text
   };
 }
 

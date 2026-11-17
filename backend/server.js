@@ -233,8 +233,11 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
       base64_image
     } = req.body;
 
-    // Safe fallbacks to prevent any saving blocks
-    serial_no = (serial_no || `GS${Math.floor(1000000 + Math.random() * 9000000)}`).trim();
+    // Validate serial number
+    serial_no = (serial_no || '').trim();
+    if (!serial_no) {
+      return res.status(400).json({ error: 'Serial number is required' });
+    }
     product_company = (product_company || 'Hikvision').trim();
     model = (model || 'DS-KIT302EFWX').trim();
     authorised_person = (authorised_person || 'Aditya Sharma').trim();

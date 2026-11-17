@@ -241,9 +241,9 @@ function resolveGlobalMachine(query, rawText = '', db = null) {
   }
 
   return {
-    serial_no: resolvedSerial.toUpperCase() || 'GS3762838',
+    serial_no: resolvedSerial.toUpperCase() || (cleanQuery && /^[A-Za-z0-9\-_\/]{5,25}$/.test(cleanQuery) ? cleanQuery.toUpperCase() : ''),
     product_company: resolvedCompany || 'Hikvision',
-    model: resolvedModel.toUpperCase() || 'DS-KIT302EFWX',
+    model: resolvedModel.toUpperCase() || (cleanQuery && cleanQuery.startsWith('DS-') ? cleanQuery.toUpperCase() : 'DS-KIT302EFWX'),
     machine_name: resolvedName || 'Industrial Hardware Asset',
     found: Boolean(found || resolvedSerial || resolvedModel)
   };

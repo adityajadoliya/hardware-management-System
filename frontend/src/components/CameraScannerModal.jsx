@@ -252,33 +252,78 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     }
   };
 
-  // Hardware-accelerated real-time live barcode/QR scanner
+  // Canvas helpers for multi-angle barcode and OCR recognition
+  const createCanvasFromDataUrl = (dataUrl) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas);
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  };
+
+  const rotateCanvas = (sourceCanvas, degrees) => {
+    const rotated = document.createElement('canvas');
+    if (degrees === 90 || degrees === 270) {
+      rotated.width = sourceCanvas.height;
+      rotated.height = sourceCanvas.width;
+    } else {
+      rotated.width = sourceCanvas.width;
+      rotated.height = sourceCanvas.height;
+    }
+    const ctx = rotated.getContext('2d');
+    ctx.translate(rotated.width / 2, rotated.height / 2);
+    ctx.rotate((degrees * Math.PI) / 180);
+    ctx.drawImage(sourceCanvas, -sourceCanvas.width / 2, -sourceCanvas.height / 2);
+    return rotated;
+  };
+
+  // Hardware-accelerated real-time live barcode/QR scanner (Checks horizontal & vertical orientations)
   const startLiveContinuousDetection = () => {
     if (liveScanTimerRef.current) clearInterval(liveScanTimerRef.current);
 
     liveScanTimerRef.current = setInterval(async () => {
       if (!videoRef.current || !cameraActive || isProcessing || extractedData) return;
 
-      // Check native browser BarcodeDetector API (3-5 milliseconds)
       if ('BarcodeDetector' in window) {
         try {
           const detector = new window.BarcodeDetector({
-            formats: ['qr_code', 'code_128', 'code_39', 'data_matrix', 'ean_13', 'upc_a']
+            formats: ['qr_code', 'code_128', 'code_39', 'data_matrix', 'ean_13', 'upc_a', 'codabar', 'itf']
           });
-          const barcodes = await detector.detect(videoRef.current);
+
+          // Check direct video frame (horizontal)
+          let barcodes = await detector.detect(videoRef.current);
+
+          // If not detected directly and canvas exists, check 90-degree vertical orientation
+          if (barcodes.length === 0 && canvasRef.current && videoRef.current) {
+            const canvas = canvasRef.current;
+            canvas.width = 640;
+            canvas.height = 360;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            const rotated = rotateCanvas(canvas, 90);
+            barcodes = await detector.detect(rotated);
+          }
+
           if (barcodes.length > 0 && barcodes[0].rawValue) {
             const rawVal = barcodes[0].rawValue.trim();
-            // Snap current frame
             if (canvasRef.current && videoRef.current) {
               const canvas = canvasRef.current;
               canvas.width = 640;
               canvas.height = 360;
               const ctx = canvas.getContext('2d');
               ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-              const snap = canvas.toDataURL('image/jpeg', 0.8);
+              const snap = canvas.toDataURL('image/jpeg', 0.85);
               setStagedImage(snap);
             }
-            // Auto-resolve in 5ms!
             handleFastBarcodeResolve(rawVal);
           }
         } catch (e) {}
@@ -378,33 +423,38 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     setStatusMessage('Barcode identified! Auto-fetching details...');
 
     try {
-      const globalResolved = await queryGlobalSearch(barcodeText, barcodeText);
-      const parsed = extractGlobalMachineInfo(barcodeText);
+      let cleanText = (barcodeText || '').trim();
+      let cleanSerial = cleanText.replace(/^(?:SN|S\/N|SERIAL(?:\s*NO)?)\s*[:=\-]?\s*/i, '').trim();
 
-      const finalSerial = globalResolved?.serial_no || parsed.serialNo || barcodeText.trim().toUpperCase();
-      const finalCompany = globalResolved?.product_company || parsed.productCompany || 'Hikvision';
-      const finalModel = globalResolved?.model || parsed.model || 'DS-KIT302EFWX';
+      const globalResolved = await queryGlobalSearch(cleanSerial || cleanText, cleanText);
+      const parsed = extractGlobalMachineInfo(cleanText);
+
+      const finalSerial = globalResolved?.serial_no || parsed.serialNo || (cleanSerial && /^[A-Za-z0-9\-_\/]{4,30}$/.test(cleanSerial) ? cleanSerial.toUpperCase() : '');
+      const finalCompany = globalResolved?.product_company || parsed.productCompany || (finalSerial.startsWith('GS') || (parsed.model && parsed.model.startsWith('DS-')) ? 'Hikvision' : 'Hikvision');
+      const finalModel = globalResolved?.model || parsed.model || (cleanSerial.startsWith('DS-') ? cleanSerial : 'DS-KIT302EFWX');
 
       setExtractedData({
         ...parsed,
         serialNo: finalSerial,
         productCompany: finalCompany,
         model: finalModel,
-        machineName: globalResolved?.machine_name || parsed.machineName,
+        machineName: globalResolved?.machine_name || parsed.machineName || 'Access Control & Biometric Terminal',
         confidence: 100,
-        rawText: `Barcode: ${barcodeText}`
+        rawText: `Barcode: ${cleanText}`
       });
     } catch (e) {
       console.warn('Barcode resolve fallback:', e);
-      const parsed = extractGlobalMachineInfo(barcodeText);
+      let cleanText = (barcodeText || '').trim();
+      let cleanSerial = cleanText.replace(/^(?:SN|S\/N|SERIAL(?:\s*NO)?)\s*[:=\-]?\s*/i, '').trim();
+      const parsed = extractGlobalMachineInfo(cleanText);
       setExtractedData({
         ...parsed,
-        serialNo: barcodeText.trim().toUpperCase() || 'GS3762838',
-        productCompany: 'Hikvision',
-        model: 'DS-KIT302EFWX',
-        machineName: 'Access Control & Biometric Terminal',
-        confidence: 100,
-        rawText: `Barcode: ${barcodeText}`
+        serialNo: cleanSerial.toUpperCase() || parsed.serialNo || '',
+        productCompany: parsed.productCompany || 'Hikvision',
+        model: parsed.model || 'DS-KIT302EFWX',
+        machineName: parsed.machineName || 'Access Control & Biometric Terminal',
+        confidence: 90,
+        rawText: `Barcode: ${cleanText}`
       });
     } finally {
       setIsProcessing(false);
@@ -475,32 +525,60 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     }
   };
 
-  // Instant Scanning Pipeline (< 30ms guaranteed, zero queue delay)
+  // High-Accuracy Scanning Pipeline
   const processImagePipeline = async (imageSrc, fileObj = null, canvasElement = null) => {
     setIsProcessing(true);
     setErrorMessage('');
     setStagedImage(imageSrc);
-    setStatusMessage('Instant plate analysis...');
+    setStatusMessage('Scanning plate image & barcode...');
 
-    // Auto-timeout guard to guarantee spinner never hangs beyond 1.2s under any circumstances
     const safetyTimer = setTimeout(() => {
       setIsProcessing(false);
-    }, 1200);
+    }, 4500);
 
     try {
       let barcodeDecoded = '';
 
-      // 1. Native Hardware Barcode Detection (3 milliseconds!)
-      if (canvasElement && 'BarcodeDetector' in window) {
+      // Prepare active canvas if not provided (e.g. from file upload or dataUrl)
+      let activeCanvas = canvasElement;
+      if (!activeCanvas && imageSrc) {
+        activeCanvas = await createCanvasFromDataUrl(imageSrc);
+      }
+
+      // 1. Native Hardware Barcode Detection across multiple angles (0°, 90°, 270°)
+      // Crucial for industrial plates which often have vertical 1D barcodes
+      if (activeCanvas && 'BarcodeDetector' in window) {
         try {
           const detector = new window.BarcodeDetector({
-            formats: ['qr_code', 'code_128', 'code_39', 'data_matrix', 'ean_13', 'upc_a']
+            formats: ['code_128', 'code_39', 'qr_code', 'data_matrix', 'ean_13', 'upc_a', 'codabar', 'itf']
           });
-          const barcodes = await detector.detect(canvasElement);
+
+          // A. Standard orientation (0 deg)
+          let barcodes = await detector.detect(activeCanvas);
           if (barcodes.length > 0 && barcodes[0].rawValue) {
             barcodeDecoded = barcodes[0].rawValue.trim();
           }
-        } catch (e) {}
+
+          // B. 90-degree rotation (vertical barcode sticker labels)
+          if (!barcodeDecoded) {
+            const rot90 = rotateCanvas(activeCanvas, 90);
+            barcodes = await detector.detect(rot90);
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              barcodeDecoded = barcodes[0].rawValue.trim();
+            }
+          }
+
+          // C. 270-degree rotation
+          if (!barcodeDecoded) {
+            const rot270 = rotateCanvas(activeCanvas, 270);
+            barcodes = await detector.detect(rot270);
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              barcodeDecoded = barcodes[0].rawValue.trim();
+            }
+          }
+        } catch (e) {
+          console.warn('BarcodeDetector error:', e);
+        }
       }
 
       // 2. Offline Html5Qrcode check (if uploaded file)
@@ -511,42 +589,64 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         } catch (e) {}
       }
 
-      // If barcode detected, resolve and return in 10ms!
+      // If barcode detected, resolve immediately
       if (barcodeDecoded) {
         clearTimeout(safetyTimer);
         await handleFastBarcodeResolve(barcodeDecoded);
         return;
       }
 
-      // 3. Instant Unique Serial & Catalog Resolution (Sub-10ms, never blocked by previous jobs)
-      const randomSerial = 'GS' + Math.floor(1000000 + Math.random() * 9000000);
-      let globalLookup = null;
+      // 3. High-Accuracy OCR on Text Label (Tesseract)
+      setStatusMessage('Extracting text (Model & Serial No.)...');
+      let ocrText = '';
       try {
-        globalLookup = await queryGlobalSearch(randomSerial);
-      } catch (e) {}
+        const worker = await getSharedOCRWorker();
+        const optimizedSrc = await optimizeImageForFastOCR(imageSrc);
+        const { data: { text } } = await worker.recognize(optimizedSrc);
+        ocrText = text || '';
 
-      const finalSerial = globalLookup?.serial_no || randomSerial;
-      const finalCompany = globalLookup?.product_company || 'Hikvision';
-      const finalModel = globalLookup?.model || 'DS-KIT302EFWX';
-      const finalName = globalLookup?.machine_name || 'Access Control & Biometric Terminal';
+        // If label is oriented vertically, OCR on normal image might miss rotated text.
+        // Try OCR on 90-degree rotated canvas if first pass did not find model or serial
+        if ((!ocrText || ocrText.length < 15 || !/DS-|GS|SN|Model/i.test(ocrText)) && activeCanvas) {
+          const rotCanvas = rotateCanvas(activeCanvas, 90);
+          const rotOptimized = await optimizeImageForFastOCR(rotCanvas.toDataURL('image/jpeg', 0.85));
+          const { data: { text: rotText } } = await worker.recognize(rotOptimized);
+          if (rotText && (rotText.length > ocrText.length || /DS-|GS|SN|Model/i.test(rotText))) {
+            ocrText = rotText;
+          }
+        }
+      } catch (ocrErr) {
+        console.warn('OCR processing notice:', ocrErr);
+      }
 
+      clearTimeout(safetyTimer);
+
+      if (ocrText && ocrText.trim()) {
+        const parsed = extractGlobalMachineInfo(ocrText);
+        if (parsed.serialNo || parsed.model) {
+          const globalLookup = await queryGlobalSearch(parsed.serialNo || parsed.model, ocrText);
+          const finalSerial = parsed.serialNo || globalLookup?.serial_no || '';
+          const finalCompany = parsed.productCompany || globalLookup?.product_company || 'Hikvision';
+          const finalModel = parsed.model || globalLookup?.model || 'DS-KIT302EFWX';
+          const finalName = parsed.machineName || globalLookup?.machine_name || 'Industrial Machine Asset';
+
+          setExtractedData({
+            ...parsed,
+            serialNo: finalSerial,
+            productCompany: finalCompany,
+            model: finalModel,
+            machineName: finalName,
+            confidence: parsed.confidence || 95,
+            rawText: ocrText
+          });
+          return;
+        }
+      }
+
+      // 4. If neither barcode nor OCR identified serial, leave it blank for user to enter/verify!
+      // Do NOT generate random fake numbers!
       setExtractedData({
-        serialNo: finalSerial,
-        productCompany: finalCompany,
-        model: finalModel,
-        machineName: finalName,
-        category: 'Security & Biometrics',
-        voltage: '12V == 2A',
-        power: '24 W',
-        countryOfOrigin: 'China',
-        confidence: 100,
-        rawText: `Hardware Plate: ${finalCompany} ${finalModel} S/N: ${finalSerial}`
-      });
-    } catch (err) {
-      console.warn('Scanning pipeline fallback:', err);
-      const fallbackSerial = 'GS' + Math.floor(1000000 + Math.random() * 9000000);
-      setExtractedData({
-        serialNo: fallbackSerial,
+        serialNo: '',
         productCompany: 'Hikvision',
         model: 'DS-KIT302EFWX',
         machineName: 'Access Control & Biometric Terminal',
@@ -554,11 +654,27 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         voltage: '12V == 2A',
         power: '24 W',
         countryOfOrigin: 'China',
-        confidence: 100,
-        rawText: `Hardware Plate: Hikvision DS-KIT302EFWX S/N: ${fallbackSerial}`
+        confidence: 0,
+        rawText: ocrText || 'No clear text detected'
       });
-    } finally {
+      setErrorMessage('Could not auto-detect barcode or text clearly. Please enter or verify Serial Number and Model directly in the fields below.');
+    } catch (err) {
+      console.warn('Scanning pipeline fallback:', err);
       clearTimeout(safetyTimer);
+      setExtractedData({
+        serialNo: '',
+        productCompany: 'Hikvision',
+        model: 'DS-KIT302EFWX',
+        machineName: 'Access Control & Biometric Terminal',
+        category: 'Security & Biometrics',
+        voltage: '12V == 2A',
+        power: '24 W',
+        countryOfOrigin: 'China',
+        confidence: 0,
+        rawText: 'Processing error'
+      });
+      setErrorMessage('Scanning error occurred. Please enter Serial Number and Model directly in the fields below.');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -611,7 +727,8 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target.result;
-      await processImagePipeline(dataUrl, file, null);
+      const canvas = await createCanvasFromDataUrl(dataUrl);
+      await processImagePipeline(dataUrl, file, canvas);
     };
     reader.readAsDataURL(file);
   };
@@ -823,35 +940,47 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
                 <div className="md:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                   {/* 1. Serial Number */}
                   <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1 mb-1">
                       <Hash className="w-3 h-3 text-emerald-400" />
                       Serial Number (S/N)
                     </span>
-                    <strong className="text-emerald-400 font-mono text-sm block mt-0.5 truncate">
-                      {extractedData.serialNo || 'GS3762838'}
-                    </strong>
+                    <input
+                      type="text"
+                      value={extractedData.serialNo || ''}
+                      onChange={(e) => setExtractedData(prev => ({ ...prev, serialNo: e.target.value.toUpperCase() }))}
+                      placeholder="e.g. GS3763033"
+                      className="w-full bg-slate-950 border border-slate-700/80 focus:border-emerald-500 rounded px-2 py-1 text-emerald-400 font-mono text-sm font-bold outline-none"
+                    />
                   </div>
 
                   {/* 2. Product Company */}
                   <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1 mb-1">
                       <Building2 className="w-3 h-3 text-indigo-400" />
                       Product Company
                     </span>
-                    <strong className="text-indigo-300 text-sm block mt-0.5 truncate">
-                      {extractedData.productCompany || 'Hikvision'}
-                    </strong>
+                    <input
+                      type="text"
+                      value={extractedData.productCompany || ''}
+                      onChange={(e) => setExtractedData(prev => ({ ...prev, productCompany: e.target.value }))}
+                      placeholder="e.g. Hikvision"
+                      className="w-full bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded px-2 py-1 text-indigo-300 font-medium text-sm outline-none"
+                    />
                   </div>
 
                   {/* 3. Model Number */}
                   <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block flex items-center gap-1 mb-1">
                       <Cpu className="w-3 h-3 text-cyan-400" />
                       Model Number
                     </span>
-                    <strong className="text-cyan-300 font-mono text-sm block mt-0.5 truncate">
-                      {extractedData.model || 'DS-KIT302EFWX'}
-                    </strong>
+                    <input
+                      type="text"
+                      value={extractedData.model || ''}
+                      onChange={(e) => setExtractedData(prev => ({ ...prev, model: e.target.value.toUpperCase() }))}
+                      placeholder="e.g. DS-K1T320EFWX"
+                      className="w-full bg-slate-950 border border-slate-700/80 focus:border-cyan-500 rounded px-2 py-1 text-cyan-300 font-mono text-sm outline-none"
+                    />
                   </div>
 
                   {extractedData.machineName && (

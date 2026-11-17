@@ -24,9 +24,9 @@ export async function getSharedOCRWorker() {
         logger: () => {} // Silent for maximum speed
       });
 
-      // Strict 1.5s timeout on downloading worker - if network is slow, fail fast!
+      // 8s timeout on downloading worker - allows proper load over mobile/cloud
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Worker load timeout')), 1500)
+        setTimeout(() => reject(new Error('Worker load timeout')), 8000)
       );
 
       const worker = await Promise.race([workerPromise, timeoutPromise]);
