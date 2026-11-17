@@ -4,21 +4,52 @@ const path = require('path');
 const dbPath = path.join(__dirname, 'hardware.db');
 const db = new Database(dbPath);
 
-const CLOUD_API_URL = 'https://hardware-management-system-snowy.vercel.app/api/machines';
+const CLOUD_SYNC_URL = 'https://hardware-management-system-snowy.vercel.app/api/sync';
+const CLOUD_MACHINES_URL = 'https://hardware-management-system-snowy.vercel.app/api/machines';
 
-async function syncFromCloud() {
+/**
+ * Full 2-Way Bidirectional Synchronization:
+ * 1. Pushes all machines in local SQLite hardware.db -> Vercel App
+ * 2. Pulls all machines from Vercel App -> local SQLite hardware.db
+ * Guarantees that data saved on Vercel appears in SQLite,
+ * AND data in SQLite appears on the Vercel app!
+ */
+async function syncBidirectional() {
   try {
-    const res = await fetch(CLOUD_API_URL);
-    if (!res.ok) {
-      console.warn(`[CloudSync] Cloud returned status: ${res.status}`);
-      return { success: false, error: `Cloud status ${res.status}` };
+    // 1. Read all local machines from hardware.db
+    const localMachines = db.prepare('SELECT * FROM machines').all();
+
+    let cloudMachines = [];
+
+    // 2. Push local machines to Vercel and receive cloud machines back
+    try {
+      const res = await fetch(CLOUD_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machines: localMachines }),
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        cloudMachines = data.machines || [];
+      } else {
+        // Fallback to GET machines
+        const getRes = await fetch(CLOUD_MACHINES_URL, { signal: AbortSignal.timeout(6000) });
+        if (getRes.ok) {
+          cloudMachines = await getRes.json();
+        }
+      }
+    } catch (netErr) {
+      console.warn('[Sync] Network error reaching Vercel cloud:', netErr.message);
+      return { success: false, error: netErr.message, localTotal: localMachines.length };
     }
 
-    const cloudMachines = await res.json();
     if (!Array.isArray(cloudMachines) || cloudMachines.length === 0) {
-      return { success: true, count: 0, message: 'No machines on cloud' };
+      return { success: true, count: localMachines.length, localTotal: localMachines.length };
     }
 
+    // 3. Upsert all cloud machines into local SQLite database
     const upsertStmt = db.prepare(`
       INSERT INTO machines (
         serial_no, product_company, model, authorised_person, plant,
@@ -41,7 +72,7 @@ async function syncFromCloud() {
 
     const plantStmt = db.prepare('INSERT OR IGNORE INTO plants (name) VALUES (?)');
 
-    let synced = 0;
+    let pulledCount = 0;
     for (const m of cloudMachines) {
       if (!m.serial_no) continue;
       const plantName = m.plant || 'Delhi -- Delhi NCR';
@@ -61,25 +92,42 @@ async function syncFromCloud() {
         m.notes || '',
         m.raw_scan_text || ''
       );
-      synced++;
+      pulledCount++;
     }
 
-    console.log(`[CloudSync] Successfully synchronized ${synced} machines into local SQLite hardware.db`);
-    return { success: true, count: synced };
+    const currentTotal = db.prepare('SELECT count(*) as total FROM machines').get().total;
+    console.log(`[Sync] 2-Way Sync Complete! Local: ${currentTotal}, Cloud: ${cloudMachines.length}`);
+    return {
+      success: true,
+      localTotal: currentTotal,
+      cloudTotal: cloudMachines.length,
+      synced: pulledCount
+    };
   } catch (err) {
-    console.error('[CloudSync] Sync error:', err.message);
+    console.error('[Sync] Bidirectional sync error:', err.message);
     return { success: false, error: err.message };
   }
 }
 
+// Single machine push helper for instant sync on add/update
+async function pushSingleMachine(machine) {
+  if (!machine || !machine.serial_no) return;
+  try {
+    await fetch(CLOUD_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machines: [machine] }),
+      signal: AbortSignal.timeout(4000)
+    });
+  } catch (e) {
+    // Non-blocking background push
+  }
+}
+
 if (require.main === module) {
-  syncFromCloud().then(res => {
+  syncBidirectional().then(res => {
     console.log('Result:', res);
-    const count = db.prepare('SELECT count(*) as total FROM machines').get();
-    console.log('Total machines in database:', count.total);
-    const machines = db.prepare('SELECT id, serial_no, product_company, model, authorised_person, plant FROM machines').all();
-    console.table(machines);
   });
 }
 
-module.exports = { syncFromCloud };
+module.exports = { syncBidirectional, syncFromCloud: syncBidirectional, pushSingleMachine };

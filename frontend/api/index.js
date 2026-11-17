@@ -238,7 +238,56 @@ export default async function handler(req, res) {
       return res.status(200).json(resolved);
     }
 
-    // 6. CSV Export
+    // 6. Two-Way Bidirectional Sync Endpoint (Local DB <-> Vercel Cloud)
+    if (pathname === '/sync' || pathname === '/sync/') {
+      if (method === 'POST') {
+        const { machines: incomingMachines = [] } = req.body || {};
+        let addedCount = 0;
+        let updatedCount = 0;
+
+        for (const item of incomingMachines) {
+          if (!item.serial_no) continue;
+          const idx = machinesStore.findIndex(m => m.serial_no.toLowerCase() === item.serial_no.toLowerCase());
+          if (idx !== -1) {
+            machinesStore[idx] = {
+              ...machinesStore[idx],
+              ...item,
+              updated_at: item.updated_at || new Date().toISOString()
+            };
+            updatedCount++;
+          } else {
+            const newId = machinesStore.length ? Math.max(...machinesStore.map(m => m.id)) + 1 : 1;
+            machinesStore.push({
+              ...item,
+              id: item.id || newId,
+              created_at: item.created_at || new Date().toISOString(),
+              updated_at: item.updated_at || new Date().toISOString()
+            });
+            addedCount++;
+          }
+          if (item.plant && !plantsStore.some(p => p.toLowerCase() === item.plant.toLowerCase())) {
+            plantsStore.push(item.plant);
+          }
+        }
+        saveStoredMachines(machinesStore);
+        return res.status(200).json({
+          success: true,
+          added: addedCount,
+          updated: updatedCount,
+          cloudTotal: machinesStore.length,
+          machines: machinesStore.map(enrichMachineData)
+        });
+      }
+      if (method === 'GET') {
+        return res.status(200).json({
+          success: true,
+          cloudTotal: machinesStore.length,
+          machines: machinesStore.map(enrichMachineData)
+        });
+      }
+    }
+
+    // 7. CSV Export
     if (pathname === '/export/csv' && method === 'GET') {
       const enriched = machinesStore.map(enrichMachineData);
       const headers = ['ID', 'Serial No', 'Product Company', 'Model', 'Plant (Destination)', 'Authorised Person', 'Purchase Date', 'Date Uploaded', 'Warranty Expiry Date', 'Pending Warranty Days', 'Warranty Status', 'Status', 'Notes'];

@@ -6,6 +6,7 @@ const multer = require('multer');
 const db = require('./database');
 const { parseLabelText } = require('./labelParser');
 const { resolveGlobalMachine } = require('./globalMachineCatalog');
+const { syncBidirectional, pushSingleMachine } = require('./syncCloud');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -296,7 +297,9 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
       );
 
       const updated = db.prepare('SELECT * FROM machines WHERE id = ?').get(existing.id);
-      return res.status(200).json(enrichMachineData(updated));
+      const enriched = enrichMachineData(updated);
+      pushSingleMachine(enriched).catch(() => {});
+      return res.status(200).json(enriched);
     }
 
     // Insert new machine record
@@ -324,7 +327,9 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
     );
 
     const inserted = db.prepare('SELECT * FROM machines WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(enrichMachineData(inserted));
+    const enriched = enrichMachineData(inserted);
+    pushSingleMachine(enriched).catch(() => {});
+    res.status(201).json(enriched);
   } catch (err) {
     console.error('Error creating/updating machine:', err);
     res.status(500).json({ error: err.message || 'Failed to save machine' });
@@ -415,7 +420,9 @@ app.put('/api/machines/:id', upload.single('label_image'), (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM machines WHERE id = ?').get(id);
-    res.json(enrichMachineData(updated));
+    const enriched = enrichMachineData(updated);
+    pushSingleMachine(enriched).catch(() => {});
+    res.json(enriched);
   } catch (err) {
     console.error('Error updating machine:', err);
     res.status(500).json({ error: err.message || 'Failed to update machine' });
@@ -520,12 +527,12 @@ app.get('/api/export/csv', (req, res) => {
   }
 });
 
-// Cloud Sync Endpoint (Synchronizes scans captured on Vercel into local SQLite hardware.db)
-const { syncFromCloud } = require('./syncCloud');
+// Cloud Sync Endpoint (Synchronizes scans captured on Vercel into local SQLite hardware.db and vice-versa)
+const { syncBidirectional, pushSingleMachine } = require('./syncCloud');
 
 app.get('/api/sync-cloud', async (req, res) => {
   try {
-    const result = await syncFromCloud();
+    const result = await syncBidirectional();
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Cloud sync failed', details: err.message });
@@ -534,7 +541,7 @@ app.get('/api/sync-cloud', async (req, res) => {
 
 app.post('/api/sync-cloud', async (req, res) => {
   try {
-    const result = await syncFromCloud();
+    const result = await syncBidirectional();
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Cloud sync failed', details: err.message });
@@ -544,12 +551,12 @@ app.post('/api/sync-cloud', async (req, res) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);
-    // Auto sync from cloud on startup
-    syncFromCloud().catch(() => {});
-    // Polling background sync every 15 seconds
+    // Auto 2-way sync on startup
+    syncBidirectional().catch(() => {});
+    // Polling background 2-way sync every 6 seconds
     setInterval(() => {
-      syncFromCloud().catch(() => {});
-    }, 15000);
+      syncBidirectional().catch(() => {});
+    }, 6000);
   });
 }
 
