@@ -1,0 +1,14 @@
+{
+  "name": "hardware-management-system",
+  "version": "1.0.0",
+  "description": "Hardware Management System with Camera Label Scanner, OCR & Warranty Tracking",
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && node server.js",
+    "start:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
