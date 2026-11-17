@@ -16,8 +16,8 @@ const plantsStore = [
   'Rajasthan -- Jaipur Facility'
 ];
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 const TMP_FILE = '/tmp/machines.json';
 
 // Real scanned machines from user (Total 28)
