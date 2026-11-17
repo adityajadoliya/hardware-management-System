@@ -23,6 +23,7 @@ import {
 import { Html5Qrcode } from 'html5-qrcode';
 import { extractGlobalMachineInfo } from '../utils/universalLabelParser';
 import { getSharedOCRWorker, optimizeImageForFastOCR } from '../utils/ocrWorkerPool';
+import { decodeBarcodeFromCanvas } from '../utils/zxingBarcodeDecoder';
 
 export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) {
   const [activeTab, setActiveTab] = useState('camera'); // 'camera' | 'upload' | 'samples'
@@ -293,42 +294,50 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     liveScanTimerRef.current = setInterval(async () => {
       if (!videoRef.current || !cameraActive || isProcessing || extractedData) return;
 
-      if ('BarcodeDetector' in window) {
-        try {
+      try {
+        let rawVal = '';
+
+        // 1. High-speed in-memory ZXing engine (works across all browsers and devices)
+        if (canvasRef.current && videoRef.current) {
+          const canvas = canvasRef.current;
+          canvas.width = 640;
+          canvas.height = 360;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+          rawVal = decodeBarcodeFromCanvas(canvas);
+          if (!rawVal) {
+            const rotated = rotateCanvas(canvas, 90);
+            rawVal = decodeBarcodeFromCanvas(rotated);
+          }
+        }
+
+        // 2. Native browser BarcodeDetector API check
+        if (!rawVal && 'BarcodeDetector' in window) {
           const detector = new window.BarcodeDetector({
             formats: ['qr_code', 'code_128', 'code_39', 'data_matrix', 'ean_13', 'upc_a', 'codabar', 'itf']
           });
 
-          // Check direct video frame (horizontal)
           let barcodes = await detector.detect(videoRef.current);
-
-          // If not detected directly and canvas exists, check 90-degree vertical orientation
-          if (barcodes.length === 0 && canvasRef.current && videoRef.current) {
-            const canvas = canvasRef.current;
-            canvas.width = 640;
-            canvas.height = 360;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            const rotated = rotateCanvas(canvas, 90);
+          if (barcodes.length === 0 && canvasRef.current) {
+            const rotated = rotateCanvas(canvasRef.current, 90);
             barcodes = await detector.detect(rotated);
           }
 
           if (barcodes.length > 0 && barcodes[0].rawValue) {
-            const rawVal = barcodes[0].rawValue.trim();
-            if (canvasRef.current && videoRef.current) {
-              const canvas = canvasRef.current;
-              canvas.width = 640;
-              canvas.height = 360;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-              const snap = canvas.toDataURL('image/jpeg', 0.85);
-              setStagedImage(snap);
-            }
-            handleFastBarcodeResolve(rawVal);
+            rawVal = barcodes[0].rawValue.trim();
           }
-        } catch (e) {}
-      }
-    }, 350);
+        }
+
+        if (rawVal) {
+          if (canvasRef.current && videoRef.current) {
+            const snap = canvasRef.current.toDataURL('image/jpeg', 0.85);
+            setStagedImage(snap);
+          }
+          handleFastBarcodeResolve(rawVal);
+        }
+      } catch (e) {}
+    }, 300);
   };
 
   const handleDeviceChange = (e) => {
@@ -368,11 +377,11 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     ctx.putImageData(imgData, 0, 0);
   };
 
-  // Instant Global Lookup via Backend API (< 5ms)
+  // Instant Global Lookup via Backend API
   const queryGlobalSearch = async (queryText, rawText = '') => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 200);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const res = await fetch('/api/scan/global-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -532,9 +541,12 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     setStagedImage(imageSrc);
     setStatusMessage('Scanning plate image & barcode...');
 
+    // Stop active camera stream while processing photo
+    stopCamera();
+
     const safetyTimer = setTimeout(() => {
       setIsProcessing(false);
-    }, 4500);
+    }, 15000);
 
     try {
       let barcodeDecoded = '';
@@ -545,21 +557,43 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         activeCanvas = await createCanvasFromDataUrl(imageSrc);
       }
 
-      // 1. Native Hardware Barcode Detection across multiple angles (0°, 90°, 270°)
-      // Crucial for industrial plates which often have vertical 1D barcodes
-      if (activeCanvas && 'BarcodeDetector' in window) {
+      // 1. High-Performance in-memory ZXing engine across all 4 angles (0°, 90°, 270°, 180°)
+      // Extremely fast (< 10ms) and works across all devices, mobile & desktop
+      if (activeCanvas) {
+        try {
+          barcodeDecoded = decodeBarcodeFromCanvas(activeCanvas);
+
+          if (!barcodeDecoded) {
+            const rot90 = rotateCanvas(activeCanvas, 90);
+            barcodeDecoded = decodeBarcodeFromCanvas(rot90);
+          }
+
+          if (!barcodeDecoded) {
+            const rot270 = rotateCanvas(activeCanvas, 270);
+            barcodeDecoded = decodeBarcodeFromCanvas(rot270);
+          }
+
+          if (!barcodeDecoded) {
+            const rot180 = rotateCanvas(activeCanvas, 180);
+            barcodeDecoded = decodeBarcodeFromCanvas(rot180);
+          }
+        } catch (zxingErr) {
+          console.warn('ZXing decoding notice:', zxingErr);
+        }
+      }
+
+      // 2. Native Hardware Barcode Detection across angles (0°, 90°, 270°)
+      if (!barcodeDecoded && activeCanvas && 'BarcodeDetector' in window) {
         try {
           const detector = new window.BarcodeDetector({
             formats: ['code_128', 'code_39', 'qr_code', 'data_matrix', 'ean_13', 'upc_a', 'codabar', 'itf']
           });
 
-          // A. Standard orientation (0 deg)
           let barcodes = await detector.detect(activeCanvas);
           if (barcodes.length > 0 && barcodes[0].rawValue) {
             barcodeDecoded = barcodes[0].rawValue.trim();
           }
 
-          // B. 90-degree rotation (vertical barcode sticker labels)
           if (!barcodeDecoded) {
             const rot90 = rotateCanvas(activeCanvas, 90);
             barcodes = await detector.detect(rot90);
@@ -568,7 +602,6 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
             }
           }
 
-          // C. 270-degree rotation
           if (!barcodeDecoded) {
             const rot270 = rotateCanvas(activeCanvas, 270);
             barcodes = await detector.detect(rot270);
@@ -577,27 +610,19 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
             }
           }
         } catch (e) {
-          console.warn('BarcodeDetector error:', e);
+          console.warn('BarcodeDetector notice:', e);
         }
       }
 
-      // 2. Offline Html5Qrcode check (if uploaded file)
-      if (!barcodeDecoded && fileObj) {
-        try {
-          const html5QrCode = new Html5Qrcode('qr-hidden-container');
-          barcodeDecoded = await html5QrCode.scanFile(fileObj, true);
-        } catch (e) {}
-      }
-
-      // If barcode detected, resolve immediately
+      // If barcode was detected, resolve immediately!
       if (barcodeDecoded) {
         clearTimeout(safetyTimer);
         await handleFastBarcodeResolve(barcodeDecoded);
         return;
       }
 
-      // 3. High-Accuracy OCR on Text Label (Tesseract)
-      setStatusMessage('Extracting text (Model & Serial No.)...');
+      // 3. High-Accuracy OCR on Text Label (Tesseract offline/local)
+      setStatusMessage('Reading text from label (Model & Serial No.)...');
       let ocrText = '';
       try {
         const worker = await getSharedOCRWorker();
@@ -605,14 +630,32 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         const { data: { text } } = await worker.recognize(optimizedSrc);
         ocrText = text || '';
 
-        // If label is oriented vertically, OCR on normal image might miss rotated text.
-        // Try OCR on 90-degree rotated canvas if first pass did not find model or serial
-        if ((!ocrText || ocrText.length < 15 || !/DS-|GS|SN|Model/i.test(ocrText)) && activeCanvas) {
+        // Check if upright OCR already found the serial
+        let quickCheck = extractGlobalMachineInfo(ocrText);
+        if (!quickCheck.serialNo && activeCanvas) {
+          // Label is vertical! Perform OCR on 90-degree rotated canvas
           const rotCanvas = rotateCanvas(activeCanvas, 90);
           const rotOptimized = await optimizeImageForFastOCR(rotCanvas.toDataURL('image/jpeg', 0.85));
           const { data: { text: rotText } } = await worker.recognize(rotOptimized);
-          if (rotText && (rotText.length > ocrText.length || /DS-|GS|SN|Model/i.test(rotText))) {
-            ocrText = rotText;
+          if (rotText) {
+            const rotCheck = extractGlobalMachineInfo(rotText);
+            if (rotCheck.serialNo || rotText.length > ocrText.length) {
+              ocrText = rotText;
+            }
+          }
+        }
+
+        // Also check 270-degree rotation if still not found
+        quickCheck = extractGlobalMachineInfo(ocrText);
+        if (!quickCheck.serialNo && activeCanvas) {
+          const rotCanvas270 = rotateCanvas(activeCanvas, 270);
+          const rotOptimized270 = await optimizeImageForFastOCR(rotCanvas270.toDataURL('image/jpeg', 0.85));
+          const { data: { text: rotText270 } } = await worker.recognize(rotOptimized270);
+          if (rotText270) {
+            const rotCheck270 = extractGlobalMachineInfo(rotText270);
+            if (rotCheck270.serialNo || rotText270.length > ocrText.length) {
+              ocrText = rotText270;
+            }
           }
         }
       } catch (ocrErr) {
@@ -858,7 +901,7 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         {/* Tab Selector */}
         <div className="flex border-b border-slate-800 bg-slate-900/60 px-6 pt-3 gap-2">
           <button
-            onClick={() => { setActiveTab('camera'); setExtractedData(null); }}
+            onClick={() => { setActiveTab('camera'); setExtractedData(null); initCamera(selectedDeviceId); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer ${
               activeTab === 'camera'
                 ? 'border-emerald-500 text-emerald-400 bg-slate-800/60'
@@ -869,7 +912,7 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
             Fast Live Camera
           </button>
           <button
-            onClick={() => { setActiveTab('upload'); setExtractedData(null); }}
+            onClick={() => { setActiveTab('upload'); setExtractedData(null); stopCamera(); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer ${
               activeTab === 'upload'
                 ? 'border-emerald-500 text-emerald-400 bg-slate-800/60'
@@ -880,7 +923,7 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
             Upload Plate Photo
           </button>
           <button
-            onClick={() => { setActiveTab('samples'); setExtractedData(null); }}
+            onClick={() => { setActiveTab('samples'); setExtractedData(null); stopCamera(); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-t-xl text-xs font-semibold tracking-wider transition-all border-b-2 cursor-pointer ${
               activeTab === 'samples'
                 ? 'border-emerald-500 text-emerald-400 bg-slate-800/60'
@@ -1249,7 +1292,7 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
 
         {/* Hidden Elements */}
         <canvas ref={canvasRef} className="hidden" />
-        <div id="qr-hidden-container" className="hidden" />
+        <div id="qr-hidden-container" style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: '600px', height: '600px', pointerEvents: 'none' }} />
       </div>
     </div>
   );

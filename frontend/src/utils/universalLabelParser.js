@@ -89,9 +89,9 @@ export function extractGlobalMachineInfo(text) {
 
   // 2. Serial Number
   const serialRegexList = [
-    /(?:S[\/|\\.]?N|SIN|SM|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#;]?\s*([A-Za-z0-9\-_\/]{4,32})/i,
-    /\b(GS\d{6,14})\b/i,
-    /\b(SN[-_]?[A-Za-z0-9]{6,22})\b/i,
+    /(?:S[\/|\\.]?N|SIN|SM|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#;]?\s*([A-Za-z0-9\-_\/\s]{4,32})/i,
+    /\b(GS\s*\d{6,14})\b/i,
+    /\b(SN[-_\s]?[A-Za-z0-9]{6,22})\b/i,
     /\b(FOC\d{4}[A-Za-z0-9]{4})\b/i
   ];
 
@@ -100,7 +100,7 @@ export function extractGlobalMachineInfo(text) {
       for (const regex of serialRegexList) {
         const match = line.match(regex);
         if (match && match[1]) {
-          serialNo = match[1].trim();
+          serialNo = match[1].trim().replace(/\s+/g, '');
           break;
         }
       }
@@ -111,7 +111,7 @@ export function extractGlobalMachineInfo(text) {
     for (const regex of serialRegexList) {
       const match = cleanText.match(regex);
       if (match && match[1]) {
-        serialNo = match[1].trim();
+        serialNo = match[1].trim().replace(/\s+/g, '');
         break;
       }
     }

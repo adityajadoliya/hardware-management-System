@@ -20,16 +20,23 @@ export async function getSharedOCRWorker() {
   isInitializing = true;
   initPromise = (async () => {
     try {
-      const workerPromise = createWorker('eng', 1, {
-        logger: () => {} // Silent for maximum speed
-      });
-
-      // 8s timeout on downloading worker - allows proper load over mobile/cloud
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Worker load timeout')), 8000)
-      );
-
-      const worker = await Promise.race([workerPromise, timeoutPromise]);
+      // First try locally served static assets (fast, offline-ready)
+      let worker = null;
+      try {
+        const localWorkerPromise = createWorker('eng', 1, {
+          workerPath: '/tesseract/worker.min.js',
+          corePath: '/tesseract/tesseract-core-simd-lstm.wasm.js',
+          langPath: '/tesseract',
+          logger: () => {}
+        });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Local load timeout')), 5000)
+        );
+        worker = await Promise.race([localWorkerPromise, timeoutPromise]);
+      } catch (localErr) {
+        // Fallback to default CDN if local assets are not reachable
+        worker = await createWorker('eng', 1, { logger: () => {} });
+      }
 
       try {
         await worker.setParameters({
