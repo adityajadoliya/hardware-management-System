@@ -20,8 +20,9 @@ import fs from 'fs';
 import path from 'path';
 const TMP_FILE = '/tmp/machines.json';
 
-// Real scanned machines from user (Total 28)
+// Real scanned machines from user (Total 29)
 const initialScannedMachines = [
+  { id: 29, serial_no: 'GS3763033', product_company: 'Hikvision', model: 'DS-K1T320EFWX', authorised_person: 'Aditya Sharma', plant: 'Gujarat -- Gujarat Plant', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-K1T320EFWX S/N: GS3763033' },
   { id: 28, serial_no: 'GS8602931', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS8602931' },
   { id: 27, serial_no: 'GS3918204', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat -- Gandhinagar Unit', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS3918204' },
   { id: 26, serial_no: 'GS7492016', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS7492016' },

@@ -89,6 +89,14 @@ export default function App() {
     fetchPlants();
     fetchStats();
     fetchMachines();
+
+    // Auto-poll every 4 seconds so scans and updates appear in real-time
+    const pollTimer = setInterval(() => {
+      fetchMachines();
+      fetchStats();
+    }, 4000);
+
+    return () => clearInterval(pollTimer);
   }, [fetchMachines]);
 
   // Handle Scanner Completion
