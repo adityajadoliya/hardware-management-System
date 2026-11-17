@@ -18,11 +18,12 @@ export default function PlantAutocomplete({
   }, [value]);
 
   const trimmed = query.trim().toLowerCase();
-  const filteredPlants = plants.filter(p => 
-    p.toLowerCase().includes(trimmed)
+  const plantNames = (plants || []).map(p => (typeof p === 'string' ? p : p?.name || '')).filter(Boolean);
+  const filteredPlants = plantNames.filter(name => 
+    name.toLowerCase().includes(trimmed)
   );
 
-  const exactMatch = plants.some(p => p.toLowerCase() === trimmed);
+  const exactMatch = plantNames.some(name => name.toLowerCase() === trimmed);
   const showAddNew = trimmed.length > 0 && !exactMatch;
 
   // Format helper: if user typed something like "Delhi", offer "Delhi -- Delhi NCR" or "State -- Destination"

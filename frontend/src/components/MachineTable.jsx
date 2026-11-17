@@ -128,11 +128,15 @@ export default function MachineTable({
               className="bg-transparent text-slate-300 focus:outline-none cursor-pointer pr-2 text-xs"
             >
               <option value="ALL" className="bg-slate-900 text-white">All Plants</option>
-              {plants.map((p) => (
-                <option key={p} value={p} className="bg-slate-900 text-white">
-                  {p}
-                </option>
-              ))}
+              {plants.map((p, idx) => {
+                const name = typeof p === 'string' ? p : p?.name || '';
+                const key = typeof p === 'string' ? p : (p?.id || idx);
+                return (
+                  <option key={key} value={name} className="bg-slate-900 text-white">
+                    {name}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
