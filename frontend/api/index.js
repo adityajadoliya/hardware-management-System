@@ -16,8 +16,41 @@ const plantsStore = [
   'Rajasthan -- Jaipur Facility'
 ];
 
-// Clean state - No dummy machines
-let machinesStore = [];
+const fs = require('fs');
+const path = require('path');
+const TMP_FILE = '/tmp/machines.json';
+
+// Real scanned machines from user
+const initialScannedMachines = [
+  { id: 10, serial_no: 'GS7697849', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS7697849' },
+  { id: 9, serial_no: 'GS5873194', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS5873194' },
+  { id: 8, serial_no: 'GS7399893', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS7399893' },
+  { id: 7, serial_no: 'GS2091974', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS2091974' },
+  { id: 6, serial_no: 'GS7913858', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS7913858' },
+  { id: 5, serial_no: 'GS8378952', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS8378952' },
+  { id: 4, serial_no: 'GS1266816', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS1266816' },
+  { id: 3, serial_no: 'GS8826729', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS8826729' },
+  { id: 2, serial_no: 'GS2802831', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS2802831' },
+  { id: 1, serial_no: 'GS3440470', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS3440470' }
+];
+
+function getStoredMachines() {
+  try {
+    if (fs.existsSync(TMP_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TMP_FILE, 'utf8'));
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {}
+  return [...initialScannedMachines];
+}
+
+function saveStoredMachines(machines) {
+  try {
+    fs.writeFileSync(TMP_FILE, JSON.stringify(machines), 'utf8');
+  } catch (e) {}
+}
+
+let machinesStore = getStoredMachines();
 
 // Global Hardware Catalog
 const GLOBAL_CATALOG = [
@@ -264,6 +297,7 @@ export default async function handler(req, res) {
             label_image: body.base64_image || machinesStore[existingIdx].label_image,
             updated_at: new Date().toISOString()
           };
+          saveStoredMachines(machinesStore);
           return res.status(200).json(enrichMachineData(machinesStore[existingIdx]));
         }
 
@@ -286,6 +320,7 @@ export default async function handler(req, res) {
           updated_at: new Date().toISOString()
         };
         machinesStore.unshift(newMachine);
+        saveStoredMachines(machinesStore);
         return res.status(201).json(enrichMachineData(newMachine));
       }
     }
@@ -320,11 +355,13 @@ export default async function handler(req, res) {
           label_image: body.base64_image || machinesStore[idx].label_image,
           updated_at: new Date().toISOString()
         };
+        saveStoredMachines(machinesStore);
         return res.status(200).json(enrichMachineData(machinesStore[idx]));
       }
 
       if (method === 'DELETE') {
         machinesStore.splice(idx, 1);
+        saveStoredMachines(machinesStore);
         return res.status(200).json({ success: true, message: 'Machine deleted successfully' });
       }
     }

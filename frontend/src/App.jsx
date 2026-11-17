@@ -147,6 +147,30 @@ export default function App() {
     fetchPlants();
   };
 
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+
+  const handleSyncCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      const res = await fetch('/api/sync-cloud');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.count > 0) {
+          showToast(`Successfully synced ${data.count} machine(s) from phone scans into local database!`);
+        } else {
+          showToast('Local database is already in sync with phone scans!');
+        }
+      }
+    } catch (e) {
+      console.warn('Sync cloud note:', e);
+    } finally {
+      setIsSyncingCloud(false);
+      fetchMachines();
+      fetchStats();
+      fetchPlants();
+    }
+  };
+
   const handleExportCsv = () => {
     window.open('/api/export/csv', '_blank');
   };
@@ -158,6 +182,8 @@ export default function App() {
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenAddModal={handleOpenAddModal}
         onExportCsv={handleExportCsv}
+        onSyncCloud={handleSyncCloud}
+        isSyncingCloud={isSyncingCloud}
         onRefresh={() => {
           fetchMachines();
           fetchStats();

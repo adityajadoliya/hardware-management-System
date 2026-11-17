@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Plus, Download, Cpu, RefreshCw } from 'lucide-react';
+import { Camera, Plus, Download, Cpu, RefreshCw, CloudDownload } from 'lucide-react';
 
 export default function Header({
   onOpenScanner,
   onOpenAddModal,
   onExportCsv,
   onRefresh,
+  onSyncCloud,
+  isSyncingCloud,
   isLoading
 }) {
   const [time, setTime] = useState(new Date());
@@ -58,6 +60,19 @@ export default function Header({
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-emerald-400' : ''}`} />
           </button>
+
+          {/* Cloud Sync (Pulls scans captured from phone) */}
+          {onSyncCloud && (
+            <button
+              onClick={onSyncCloud}
+              disabled={isSyncingCloud}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 rounded-xl text-xs font-semibold transition-colors border border-emerald-500/40 cursor-pointer shadow-sm"
+              title="Sync scans captured from mobile phone into local database"
+            >
+              <CloudDownload className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-bounce text-emerald-200' : 'text-emerald-400'}`} />
+              <span className="hidden sm:inline">Sync Cloud</span>
+            </button>
+          )}
 
           {/* Export CSV */}
           <button
