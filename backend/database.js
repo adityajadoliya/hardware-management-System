@@ -90,73 +90,7 @@ try {
   });
   insertMany(seedPlants);
 
-  // Seed initial machines if empty
-  const countRow = db.prepare('SELECT COUNT(*) as count FROM machines').get();
-  if (!countRow || countRow.count === 0) {
-    const insertMachine = db.prepare(`
-      INSERT INTO machines (
-        serial_no, product_company, model, authorised_person, plant, 
-        purchase_date, warranty_expiry_date, warranty_months, status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const today = new Date();
-    const fmt = (d) => d.toISOString().split('T')[0];
-
-    const p1 = new Date(today);
-    p1.setMonth(p1.getMonth() - 2);
-    const exp1 = new Date(p1);
-    exp1.setFullYear(exp1.getFullYear() + 2);
-
-    const p2 = new Date(today);
-    p2.setMonth(p2.getMonth() - 11);
-    const exp2 = new Date(p2);
-    exp2.setFullYear(exp2.getFullYear() + 1);
-
-    const p3 = new Date(today);
-    p3.setFullYear(p3.getFullYear() - 2);
-    const exp3 = new Date(p3);
-    exp3.setFullYear(exp3.getFullYear() + 1);
-
-    insertMachine.run(
-      'GS3762838',
-      'Hikvision',
-      'DS-KIT302EFWX',
-      'Aditya Sharma',
-      'Gujarat -- Ahmedabad Plant',
-      fmt(p1),
-      fmt(exp1),
-      24,
-      'Active',
-      'Terminal device deployed at Gujarat Plant main access control gate.'
-    );
-
-    insertMachine.run(
-      'SN-89240194B',
-      'Hikvision',
-      'DS-KIT302EFWX',
-      'Rajesh Patel',
-      'Delhi -- Delhi NCR',
-      fmt(p2),
-      fmt(exp2),
-      12,
-      'Active',
-      'Unit stationed at Warehouse entrance.'
-    );
-
-    insertMachine.run(
-      'C920-A78129',
-      'Cisco',
-      'C9200L-24P-4G',
-      'Vikram Singh',
-      'Maharashtra -- Mumbai Plant',
-      fmt(p3),
-      fmt(exp3),
-      12,
-      'Active',
-      'Core switch located in Server Rack B.'
-    );
-  }
+  // Clean empty state - No dummy machines auto-seeded
 } catch (nativeErr) {
   console.warn('Native SQLite driver notice, engaging memory fallback:', nativeErr.message);
 
@@ -173,59 +107,7 @@ try {
     { id: 9, name: 'Rajasthan -- Jaipur Facility' }
   ];
 
-  let memMachines = [
-    {
-      id: 1,
-      serial_no: 'GS3762838',
-      product_company: 'Hikvision',
-      model: 'DS-KIT302EFWX',
-      authorised_person: 'Aditya Sharma',
-      plant: 'Gujarat -- Ahmedabad Plant',
-      purchase_date: '2026-09-17',
-      warranty_expiry_date: '2028-09-17',
-      warranty_months: 24,
-      status: 'Active',
-      label_image: null,
-      notes: 'Terminal device deployed at Gujarat Plant main access control gate.',
-      raw_scan_text: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      serial_no: 'SN-89240194B',
-      product_company: 'Hikvision',
-      model: 'DS-KIT302EFWX',
-      authorised_person: 'Rajesh Patel',
-      plant: 'Delhi -- Delhi NCR',
-      purchase_date: '2025-12-17',
-      warranty_expiry_date: '2026-12-17',
-      warranty_months: 12,
-      status: 'Active',
-      label_image: null,
-      notes: 'Unit stationed at Warehouse entrance.',
-      raw_scan_text: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: 3,
-      serial_no: 'C920-A78129',
-      product_company: 'Cisco',
-      model: 'C9200L-24P-4G',
-      authorised_person: 'Vikram Singh',
-      plant: 'Maharashtra -- Mumbai Plant',
-      purchase_date: '2024-11-17',
-      warranty_expiry_date: '2025-11-17',
-      warranty_months: 12,
-      status: 'Active',
-      label_image: null,
-      notes: 'Core switch located in Server Rack B.',
-      raw_scan_text: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
+  let memMachines = [];
 
   db = {
     pragma: () => {},

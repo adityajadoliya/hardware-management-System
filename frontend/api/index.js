@@ -16,76 +16,8 @@ const plantsStore = [
   'Rajasthan -- Jaipur Facility'
 ];
 
-let machinesStore = [
-  {
-    id: 1,
-    serial_no: 'GS3762838',
-    product_company: 'Hikvision',
-    model: 'DS-KIT302EFWX',
-    authorised_person: 'Aditya Sharma',
-    plant: 'Gujarat -- Ahmedabad Plant',
-    purchase_date: '2026-09-17',
-    warranty_expiry_date: '2028-09-17',
-    warranty_months: 24,
-    status: 'Active',
-    label_image: null,
-    notes: 'Terminal device deployed at Gujarat Plant main access control gate.',
-    raw_scan_text: '',
-    created_at: '2026-11-17 17:17:13',
-    updated_at: '2026-11-17 17:17:13'
-  },
-  {
-    id: 2,
-    serial_no: 'SN-89240194B',
-    product_company: 'Hikvision',
-    model: 'DS-KIT302EFWX',
-    authorised_person: 'Rajesh Patel',
-    plant: 'Delhi -- Delhi NCR',
-    purchase_date: '2025-12-17',
-    warranty_expiry_date: '2026-12-17',
-    warranty_months: 12,
-    status: 'Active',
-    label_image: null,
-    notes: 'Unit stationed at Warehouse entrance.',
-    raw_scan_text: '',
-    created_at: '2026-11-17 17:17:13',
-    updated_at: '2026-11-17 17:17:13'
-  },
-  {
-    id: 3,
-    serial_no: 'C920-A78129',
-    product_company: 'Cisco',
-    model: 'C9200L-24P-4G',
-    authorised_person: 'Vikram Singh',
-    plant: 'Maharashtra -- Mumbai Plant',
-    purchase_date: '2024-11-17',
-    warranty_expiry_date: '2025-11-17',
-    warranty_months: 12,
-    status: 'Active',
-    label_image: null,
-    notes: 'Core switch located in Server Rack B.',
-    raw_scan_text: '',
-    created_at: '2026-11-17 17:17:13',
-    updated_at: '2026-11-17 17:17:13'
-  },
-  {
-    id: 4,
-    serial_no: 'GS3762838-TEST1',
-    product_company: 'Hikvision',
-    model: 'DS-KIT302EFWX',
-    authorised_person: 'Aditya',
-    plant: 'Gujarat -- Gujarat Plant',
-    purchase_date: '2026-01-15',
-    warranty_expiry_date: '2028-01-15',
-    warranty_months: 24,
-    status: 'Active',
-    label_image: null,
-    notes: 'Commissioned at Gujarat unit entry gate',
-    raw_scan_text: '',
-    created_at: '2026-11-17 17:17:27',
-    updated_at: '2026-11-17 17:17:27'
-  }
-];
+// Clean state - No dummy machines
+let machinesStore = [];
 
 // Global Hardware Catalog
 const GLOBAL_CATALOG = [
