@@ -253,8 +253,8 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     }
   };
 
-  // Canvas helpers for multi-angle barcode and OCR recognition with mobile downscaling
-  const createCanvasFromDataUrl = (dataUrl, maxDim = 850) => {
+  // Canvas helpers for multi-angle barcode and OCR recognition with high-res preservation
+  const createCanvasFromDataUrl = (dataUrl, maxDim = 1800) => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -593,11 +593,11 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
         }
       }
 
-      // 2. Native Hardware Barcode Detection across angles (0°, 90°, 270°)
+      // 2. Native Hardware Barcode Detection across angles (0°, 90°, 270°, 180°)
       if (!barcodeDecoded && activeCanvas && 'BarcodeDetector' in window) {
         try {
           const detector = new window.BarcodeDetector({
-            formats: ['code_128', 'code_39', 'qr_code', 'data_matrix', 'ean_13', 'upc_a', 'codabar', 'itf']
+            formats: ['code_128', 'code_39', 'qr_code', 'data_matrix', 'ean_13', 'upc_a']
           });
 
           let barcodes = await detector.detect(activeCanvas);
@@ -616,6 +616,14 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
           if (!barcodeDecoded) {
             const rot270 = rotateCanvas(activeCanvas, 270);
             barcodes = await detector.detect(rot270);
+            if (barcodes.length > 0 && barcodes[0].rawValue) {
+              barcodeDecoded = barcodes[0].rawValue.trim();
+            }
+          }
+
+          if (!barcodeDecoded) {
+            const rot180 = rotateCanvas(activeCanvas, 180);
+            barcodes = await detector.detect(rot180);
             if (barcodes.length > 0 && barcodes[0].rawValue) {
               barcodeDecoded = barcodes[0].rawValue.trim();
             }

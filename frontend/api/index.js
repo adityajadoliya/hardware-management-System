@@ -20,8 +20,9 @@ import fs from 'fs';
 import path from 'path';
 const TMP_FILE = '/tmp/machines.json';
 
-// Real scanned machines from user (Total 29)
+// Real scanned machines from user (Total 30)
 const initialScannedMachines = [
+  { id: 30, serial_no: '3487BM2J7204T1', product_company: 'Meta quest 3s', model: 'SK-1000204', authorised_person: 'Bobby', plant: 'Gujarat -- Ahmedabad Plant', purchase_date: '2026-11-19', warranty_expiry_date: '2027-11-19', warranty_months: 12, status: 'Active', notes: 'Type: VR HEADSET | Origin: Made in china | MFG: 2026/08', raw_scan_text: 'Barcode: 3487BM2J7204T1' },
   { id: 29, serial_no: 'GS3763033', product_company: 'Hikvision', model: 'DS-K1T320EFWX', authorised_person: 'Aditya Sharma', plant: 'Gujarat -- Gujarat Plant', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-K1T320EFWX S/N: GS3763033' },
   { id: 28, serial_no: 'GS8602931', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Delhi -- Delhi NCR', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS8602931' },
   { id: 27, serial_no: 'GS3918204', product_company: 'Hikvision', model: 'DS-KIT302EFWX', authorised_person: 'Bobby', plant: 'Gujarat -- Gandhinagar Unit', purchase_date: '2026-11-17', warranty_expiry_date: '2027-11-17', warranty_months: 12, status: 'Active', notes: 'Type: Access Control & Biometric Terminal | Ratings: 12V == 2A | 24 W | Origin: China', raw_scan_text: 'Hardware Plate: Hikvision DS-KIT302EFWX S/N: GS3918204' },
@@ -73,7 +74,7 @@ let machinesStore = getStoredMachines();
 
 // Global Hardware Catalog
 const GLOBAL_CATALOG = [
-  { company: 'Hikvision', modelPrefixes: ['DS-', 'DS-KIT', 'DS-K', 'DS-2CD', 'DS-7'], serialPatterns: [/^(?:GS|SN|HK)\d{6,12}$/i, /^GS3762838/i], defaultModel: 'DS-KIT302EFWX', machineName: 'Access Control & Biometric Terminal', category: 'Security & Biometrics' },
+  { company: 'Hikvision', modelPrefixes: ['DS-K1T', 'DS-KIT', 'DS-K', 'DS-2CD', 'DS-7', 'DS-'], serialPatterns: [/^(?:GS|SN|HK)\d{6,12}$/i, /^GS3763033/i, /^GS3762838/i], defaultModel: 'DS-K1T320EFWX', machineName: 'Access Control & Biometric Terminal', category: 'Security & Biometrics' },
   { company: 'Cisco', modelPrefixes: ['C9200', 'C9300', 'WS-C', 'CBS', 'ISR', 'ASR', 'Catalyst'], serialPatterns: [/^[A-Z]{3}\d{4}[A-Z0-9]{4}$/i, /^FOC\d{4}/i], defaultModel: 'C9200L-24P-4G', machineName: 'Industrial Gigabit Managed Switch', category: 'Enterprise Networking' },
   { company: 'Siemens', modelPrefixes: ['6ES7', '6GK', '6AV', 'SIMATIC', 'S7-1200', 'S7-1500', 'S7-300'], serialPatterns: [/^[A-Z]{4}\d{6,10}$/i, /^SVPB\d+/i], defaultModel: '6ES7515-2AM01-0AB0', machineName: 'SIMATIC S7-1500 Programmable Controller (PLC)', category: 'Industrial Automation' },
   { company: 'ABB', modelPrefixes: ['M3BP', 'M2BAX', 'ACS580', 'ACS880'], serialPatterns: [/^\d[A-Z]{3}\d{6}-[A-Z]{3}$/i, /^3GBA\d+/i], defaultModel: 'M3BP-160MLB4', machineName: 'Three-Phase Industrial Induction Motor', category: 'Electric Motors & Drives' },

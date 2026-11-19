@@ -87,21 +87,45 @@ export function extractGlobalMachineInfo(text) {
     }
   }
 
-  // 2. Serial Number
+  // 2. Serial Number Extraction (High Precision, Zero Cross-Line Hallucination)
   const serialRegexList = [
-    /(?:S[\/|\\.]?N|SIN|SM|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#;]?\s*([A-Za-z0-9\-_\/\s]{4,32})/i,
-    /\b(GS\s*\d{6,14})\b/i,
-    /\b(SN[-_\s]?[A-Za-z0-9]{6,22})\b/i,
+    // Standard label prefix: S/N: GS3763033, SN: 12345678, Serial: ABC-1234
+    /(?:S[\/|\\.]?N|SIN|SM|S\.N\.|SN|Serial\s*No\.?|Serial\s*Number|Serial|S\/No|Ser\.?\s*Nr\.?|Fabr\.?\s*Nr\.?|Service\s*Tag)\s*[:=\-—#;]?\s*([A-Za-z0-9\-_]{4,25})/i,
+    // Hikvision hardware standard format: GS3763033, GS3762838 (with or without spaces)
+    /\b(GS\s*\d{6,12})\b/i,
+    // General serial prefixes
+    /\b(SN[-_]?[A-Za-z0-9]{6,22})\b/i,
     /\b(FOC\d{4}[A-Za-z0-9]{4})\b/i
   ];
+
+  const sanitizeCandidateSerial = (raw) => {
+    if (!raw) return '';
+    let s = raw.trim().replace(/\s+/g, '').toUpperCase();
+    // Hikvision 7-digit numeric serial OCR disambiguation (e.g. GS3763O33 -> GS3763033)
+    if (/^GS[0-9A-Z]{7}$/.test(s)) {
+      const numPart = s.substring(2)
+        .replace(/O/g, '0')
+        .replace(/[IL]/g, '1')
+        .replace(/Z/g, '2')
+        .replace(/S/g, '5')
+        .replace(/B/g, '8');
+      if (/^\d{7}$/.test(numPart)) {
+        s = `GS${numPart}`;
+      }
+    }
+    return s;
+  };
 
   for (const line of lines) {
     if (!serialNo) {
       for (const regex of serialRegexList) {
         const match = line.match(regex);
         if (match && match[1]) {
-          serialNo = match[1].trim().replace(/\s+/g, '');
-          break;
+          const candidate = sanitizeCandidateSerial(match[1]);
+          if (candidate && !/^(MODEL|SERIAL|DATE|TYPE|MADE|CHINA|HIKVISION)$/i.test(candidate)) {
+            serialNo = candidate;
+            break;
+          }
         }
       }
     }
@@ -111,17 +135,23 @@ export function extractGlobalMachineInfo(text) {
     for (const regex of serialRegexList) {
       const match = cleanText.match(regex);
       if (match && match[1]) {
-        serialNo = match[1].trim().replace(/\s+/g, '');
-        break;
+        const candidate = sanitizeCandidateSerial(match[1]);
+        if (candidate && !/^(MODEL|SERIAL|DATE|TYPE|MADE|CHINA|HIKVISION)$/i.test(candidate)) {
+          serialNo = candidate;
+          break;
+        }
       }
     }
   }
 
   // 3. Model Number (Specific markers first)
   const priorityModelRegexes = [
+    // Model marker: Model: DS-K1T320EFWX, Model No: 6ES7..., M/N: ...
     /(?:Model\s*No\.?|Model\s*Number|Model|Modell?|M\/N|Cat\.?\s*No\.?|Cat#)\s*[:=\-—#]?\s*([A-Za-z0-9\-_\/]{3,35})/i,
-    /(?:P\/N|Part\s*No\.?|Product\s*No\.?|Item\s*No\.?|Article\s*No\.?|Art\.?\s*Nr\.?|MLFB)\s*[:=\-—#]?\s*([A-Za-z0-9\-_\/]{4,35})/i,
+    // Hikvision specific model series (DS-K1T..., DS-2CD..., DS-7...)
+    /\b(DS-K[0-9A-Za-z\-_\/]{4,25})\b/i,
     /\b(DS-[A-Za-z0-9\-_\/]{4,25})\b/i,
+    /(?:P\/N|Part\s*No\.?|Product\s*No\.?|Item\s*No\.?|Article\s*No\.?|Art\.?\s*Nr\.?|MLFB)\s*[:=\-—#]?\s*([A-Za-z0-9\-_\/]{4,35})/i,
     /\b(6ES7\s*[0-9A-Za-z\-]+)\b/i,
     /\b([A-Z0-9]{3,8}-[A-Z0-9]{4,14})\b/
   ];

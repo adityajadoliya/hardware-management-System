@@ -9,15 +9,15 @@ let cachedReader = null;
 function getReader() {
   if (cachedReader) return cachedReader;
 
+  // High accuracy formats: Code 128 (Hikvision/industrial default), Code 39, QR, DataMatrix, EAN/UPC
+  // Notice: Excluded ITF and CODABAR to prevent false-positive random digit hallucinations from noisy textures
   const formats = [
     ZXing.BarcodeFormat.CODE_128,
     ZXing.BarcodeFormat.CODE_39,
     ZXing.BarcodeFormat.QR_CODE,
     ZXing.BarcodeFormat.DATA_MATRIX,
     ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.UPC_A,
-    ZXing.BarcodeFormat.ITF,
-    ZXing.BarcodeFormat.CODABAR
+    ZXing.BarcodeFormat.UPC_A
   ];
 
   const hints = new Map();

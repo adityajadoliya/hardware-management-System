@@ -8,9 +8,9 @@ const GLOBAL_CATALOG = [
   // 1. Hikvision Biometrics & Access Control
   {
     company: 'Hikvision',
-    modelPrefixes: ['DS-', 'DS-KIT', 'DS-K', 'DS-2CD', 'DS-7'],
-    serialPatterns: [/^(?:GS|SN|HK)\d{6,12}$/i, /^GS3762838/i],
-    defaultModel: 'DS-KIT302EFWX',
+    modelPrefixes: ['DS-K1T', 'DS-KIT', 'DS-K', 'DS-2CD', 'DS-7', 'DS-'],
+    serialPatterns: [/^(?:GS|SN|HK)\d{6,12}$/i, /^GS3763033/i, /^GS3762838/i],
+    defaultModel: 'DS-K1T320EFWX',
     machineName: 'Access Control & Biometric Terminal',
     category: 'Security & Biometrics'
   },
