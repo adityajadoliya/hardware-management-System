@@ -176,6 +176,9 @@ function resolveGlobalMachine(query, rawText = '') {
 }
 
 export default async function handler(req, res) {
+  // Always reload latest stored machines on every invocation
+  machinesStore = getStoredMachines();
+
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');

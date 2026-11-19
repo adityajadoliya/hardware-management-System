@@ -253,17 +253,28 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     }
   };
 
-  // Canvas helpers for multi-angle barcode and OCR recognition
-  const createCanvasFromDataUrl = (dataUrl) => {
+  // Canvas helpers for multi-angle barcode and OCR recognition with mobile downscaling
+  const createCanvasFromDataUrl = (dataUrl, maxDim = 850) => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, width, height);
         resolve(canvas);
       };
       img.onerror = () => resolve(null);
@@ -770,8 +781,9 @@ export default function CameraScannerModal({ isOpen, onClose, onScanComplete }) 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target.result;
-      const canvas = await createCanvasFromDataUrl(dataUrl);
-      await processImagePipeline(dataUrl, file, canvas);
+      const canvas = await createCanvasFromDataUrl(dataUrl, 850);
+      const safeCompressedImage = canvas ? canvas.toDataURL('image/jpeg', 0.7) : dataUrl;
+      await processImagePipeline(safeCompressedImage, file, canvas);
     };
     reader.readAsDataURL(file);
   };

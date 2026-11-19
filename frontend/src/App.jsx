@@ -7,8 +7,16 @@ import MachineFormModal from './components/MachineFormModal';
 import MachineDetailModal from './components/MachineDetailModal';
 import { Camera, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
+const LOCAL_STORAGE_KEY = 'hardware_management_machines_cache';
+
 export default function App() {
-  const [machines, setMachines] = useState([]);
+  const [machines, setMachines] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+      if (Array.isArray(cached) && cached.length > 0) return cached;
+    } catch (e) {}
+    return [];
+  });
   const [plants, setPlants] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -75,7 +83,38 @@ export default function App() {
       const res = await fetch(`/api/machines?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
+        
+        // Check if localStorage has any extra scans (e.g. from mobile offline scans)
+        try {
+          const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+          const missingInApi = cached.filter(
+            c => c && c.serial_no && !data.some(d => d.serial_no && d.serial_no.toLowerCase() === c.serial_no.toLowerCase())
+          );
+          if (missingInApi.length > 0) {
+            // Re-sync missing scans to server automatically!
+            fetch('/api/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ machines: missingInApi })
+            }).catch(() => {});
+
+            const merged = [...data, ...missingInApi];
+            setMachines(merged);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+            return;
+          }
+        } catch (e) {}
+
         setMachines(data);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {}
+      } else {
+        // Fallback to offline cache if network or container has a glitch
+        try {
+          const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+          if (cached.length > 0) setMachines(cached);
+        } catch (e) {}
       }
     } catch (e) {
       console.error('Failed to load machines', e);
@@ -145,6 +184,14 @@ export default function App() {
   };
 
   const handleSaveSuccess = (savedMachine) => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+      const filtered = cached.filter(m => m.serial_no && m.serial_no.toLowerCase() !== savedMachine.serial_no.toLowerCase());
+      const updated = [savedMachine, ...filtered];
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      setMachines(updated);
+    } catch (e) {}
+
     showToast(
       isEditMode
         ? `Machine ${savedMachine.serial_no} updated successfully!`

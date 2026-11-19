@@ -554,10 +554,10 @@ if (require.main === module) {
     console.log(`Backend server running on http://localhost:${PORT}`);
     // Auto 2-way sync on startup
     syncBidirectional().catch(() => {});
-    // Polling background 2-way sync every 6 seconds
+    // Polling background 2-way sync every 3 seconds for instant updates
     setInterval(() => {
       syncBidirectional().catch(() => {});
-    }, 6000);
+    }, 3000);
   });
 }
 

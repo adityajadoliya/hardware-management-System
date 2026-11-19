@@ -256,6 +256,31 @@ export default function MachineFormModal({
         finalNotes = finalNotes ? `${finalNotes} [${techSummary}]` : techSummary;
       }
 
+      // Compress base64 image if needed to guarantee payload is always < 100KB (Vercel 4.5MB limit safe)
+      let safeBase64 = formData.base64_image;
+      if (safeBase64 && safeBase64.length > 150000) {
+        try {
+          const img = new Image();
+          await new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = safeBase64;
+          });
+          if (img.width) {
+            const canvas = document.createElement('canvas');
+            const maxDim = 650;
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+              else { w = Math.round((w * maxDim) / h); h = maxDim; }
+            }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            safeBase64 = canvas.toDataURL('image/jpeg', 0.65);
+          }
+        } catch (e) {}
+      }
+
       const payload = {
         ...formData,
         serial_no: finalSerial,
@@ -264,7 +289,8 @@ export default function MachineFormModal({
         authorised_person: finalAuthorised,
         plant: finalPlant,
         purchase_date: finalPurchaseDate,
-        notes: finalNotes
+        notes: finalNotes,
+        base64_image: safeBase64
       };
 
       const url = isEdit ? `/api/machines/${formData.id}` : '/api/machines';
