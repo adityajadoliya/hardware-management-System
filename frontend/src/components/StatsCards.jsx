@@ -83,9 +83,6 @@ export default function StatsCards({ stats = {} }) {
             <div className={`text-2xl font-bold font-mono ${c.text}`}>
               {c.value}
             </div>
-            <p className="text-[10px] text-slate-500 mt-1 truncate">
-              {c.subtitle}
-            </p>
           </div>
         );
       })}

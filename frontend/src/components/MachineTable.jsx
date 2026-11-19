@@ -82,15 +82,12 @@ export default function MachineTable({
     if (plantStr.includes('--')) {
       const [statePart, destPart] = plantStr.split('--').map(s => s.trim());
       return (
-        <div className="flex flex-col">
-          <span className="inline-flex items-center gap-1 font-semibold text-slate-100 text-xs">
-            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-emerald-300 font-bold">{statePart}</span>
-            <span className="text-slate-500 font-mono">--</span>
-            <span className="text-slate-200">{destPart}</span>
-          </span>
-          <span className="text-[10px] text-slate-500 ml-4.5">State: {statePart} &bull; Dest: {destPart}</span>
-        </div>
+        <span className="inline-flex items-center gap-1 font-semibold text-slate-100 text-xs">
+          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-emerald-300 font-bold">{statePart}</span>
+          <span className="text-slate-500 font-mono">--</span>
+          <span className="text-slate-200">{destPart}</span>
+        </span>
       );
     }
     return (
@@ -204,6 +201,7 @@ export default function MachineTable({
                   {/* NEW COLUMN: Product Company placed just before Model */}
                   <th className="py-3.5 px-4">Product Company</th>
                   <th className="py-3.5 px-4">Model</th>
+                  <th className="py-3.5 px-4">Company Name</th>
                   <th className="py-3.5 px-4">Plant (Destination)</th>
                   <th className="py-3.5 px-4">Authorised Person</th>
                   <th className="py-3.5 px-4">Purchasing Date</th>
@@ -280,6 +278,13 @@ export default function MachineTable({
                           {machine.notes}
                         </p>
                       )}
+                    </td>
+
+                    {/* Company Name */}
+                    <td className="py-3 px-4">
+                      <span className="font-medium text-slate-200 text-xs">
+                        {machine.company_name || '—'}
+                      </span>
                     </td>
 
                     {/* Plant (Destination): Formatted as "Delhi -- Delhi NCR" */}

@@ -52,12 +52,13 @@ async function syncBidirectional() {
     // 3. Upsert all cloud machines into local SQLite database
     const upsertStmt = db.prepare(`
       INSERT INTO machines (
-        serial_no, product_company, model, authorised_person, plant,
+        serial_no, product_company, company_name, model, authorised_person, plant,
         purchase_date, warranty_expiry_date, warranty_months,
         status, label_image, notes, raw_scan_text
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(serial_no) DO UPDATE SET
         product_company = excluded.product_company,
+        company_name = excluded.company_name,
         model = excluded.model,
         authorised_person = excluded.authorised_person,
         plant = excluded.plant,
@@ -81,8 +82,9 @@ async function syncBidirectional() {
       upsertStmt.run(
         m.serial_no,
         m.product_company || 'Hikvision',
+        m.company_name || '',
         m.model || 'DS-KIT302EFWX',
-        m.authorised_person || 'Bobby',
+        m.authorised_person || '',
         plantName,
         m.purchase_date || '2026-11-17',
         m.warranty_expiry_date || '2027-11-17',

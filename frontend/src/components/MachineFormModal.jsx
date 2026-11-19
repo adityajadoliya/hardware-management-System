@@ -10,12 +10,7 @@ import {
   CheckCircle,
   Clock,
   Building2,
-  Layers,
-  Zap,
-  Globe2,
-  Tag,
-  Gauge,
-  ChevronDown
+  Layers
 } from 'lucide-react';
 import PlantAutocomplete from './PlantAutocomplete';
 import confetti from 'canvas-confetti';
@@ -31,6 +26,7 @@ export default function MachineFormModal({
   const [formData, setFormData] = useState({
     serial_no: '',
     product_company: 'Hikvision',
+    company_name: '',
     model: '',
     authorised_person: '',
     plant: '',
@@ -52,7 +48,6 @@ export default function MachineFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [serialWarning, setSerialWarning] = useState('');
-  const [showTechSpecs, setShowTechSpecs] = useState(true);
 
   const companyOptions = [
     'Siemens',
@@ -87,7 +82,6 @@ export default function MachineFormModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const defaultAuthorised = localStorage.getItem('last_authorised_person') || 'Aditya Sharma';
     const defaultPlant = localStorage.getItem('last_plant') || (plants.length > 0 ? plants[0].name : 'Gujarat -- Gujarat Plant');
 
     if (initialData) {
@@ -101,8 +95,9 @@ export default function MachineFormModal({
         id: initialData.id,
         serial_no: initialData.serial_no || initialData.serialNo || '',
         product_company: initialData.product_company || initialData.productCompany || 'Hikvision',
+        company_name: initialData.company_name || '',
         model: initialData.model || '',
-        authorised_person: initialData.authorised_person || defaultAuthorised,
+        authorised_person: initialData.authorised_person || '',
         plant: initialData.plant || defaultPlant,
         purchase_date: pDate,
         warranty_months: wMonths,
@@ -117,18 +112,14 @@ export default function MachineFormModal({
         country_of_origin: initialData.countryOfOrigin || initialData.country_of_origin || '',
         mfg_date: initialData.mfgDate || initialData.mfg_date || ''
       });
-
-      // Expand technical specifications if detected
-      if (initialData.voltage || initialData.power || initialData.machineName || initialData.countryOfOrigin) {
-        setShowTechSpecs(true);
-      }
     } else {
       const today = new Date().toISOString().split('T')[0];
       setFormData({
         serial_no: '',
         product_company: 'Hikvision',
+        company_name: '',
         model: '',
-        authorised_person: defaultAuthorised,
+        authorised_person: '',
         plant: defaultPlant,
         purchase_date: today,
         warranty_months: 12,
@@ -227,14 +218,18 @@ export default function MachineFormModal({
       return;
     }
     const finalCompany = formData.product_company.trim() || 'Hikvision';
+    const finalCompanyName = formData.company_name.trim();
     const finalModel = formData.model.trim() || 'DS-KIT302EFWX';
-    const finalAuthorised = formData.authorised_person.trim() || localStorage.getItem('last_authorised_person') || 'Aditya Sharma';
+    const finalAuthorised = formData.authorised_person.trim();
+    if (!finalAuthorised) {
+      setError('Authorised Person is required.');
+      return;
+    }
     const finalPlant = formData.plant.trim() || localStorage.getItem('last_plant') || 'Gujarat -- Gujarat Plant';
     const finalPurchaseDate = formData.purchase_date || new Date().toISOString().split('T')[0];
 
-    // Auto-persist last used authorised person & plant for seamless UX
+    // Auto-persist last used plant
     try {
-      localStorage.setItem('last_authorised_person', finalAuthorised);
       localStorage.setItem('last_plant', finalPlant);
     } catch (e) {}
 
@@ -285,6 +280,7 @@ export default function MachineFormModal({
         ...formData,
         serial_no: finalSerial,
         product_company: finalCompany,
+        company_name: finalCompanyName,
         model: finalModel,
         authorised_person: finalAuthorised,
         plant: finalPlant,
@@ -340,15 +336,9 @@ export default function MachineFormModal({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white tracking-wide">
                 {isEdit ? 'Edit Machine Details' : 'Verify & Store Machine'}
-                <span className="text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/60">
-                  {isEdit ? 'Update Asset' : 'Label Scanned'}
-                </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                Confirm scanned details, assign authorised person, destination plant & warranty
-              </p>
             </div>
           </div>
           <button
@@ -396,7 +386,6 @@ export default function MachineFormModal({
                 <p className="text-xs text-slate-300 truncate">
                   Company: <strong className="text-indigo-300 font-semibold">{formData.product_company}</strong> | Model: <strong className="text-white font-mono">{formData.model || 'Pending'}</strong> | S/N: <strong className="text-white font-mono">{formData.serial_no || 'Pending'}</strong>
                 </p>
-                <p className="text-[11px] text-slate-400">Archived in hardware inventory records</p>
               </div>
             </div>
           )}
@@ -404,14 +393,9 @@ export default function MachineFormModal({
           {/* Row 1: Serial No & Product Company */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Hash className="w-3.5 h-3.5 text-emerald-400" />
-                  Serial Number (S/N) *
-                </span>
-                <span className="text-[10px] text-emerald-400/90 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-                  Auto-fetched
-                </span>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-emerald-400" />
+                Serial Number (S/N) *
               </label>
               <input
                 type="text"
@@ -425,14 +409,9 @@ export default function MachineFormModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                  Product Company (Brand) *
-                </span>
-                <span className="text-[10px] text-indigo-300/90 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800/40">
-                  Worldwide Recognized
-                </span>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                Product Company (Brand) *
               </label>
               <div className="relative">
                 <input
@@ -456,14 +435,9 @@ export default function MachineFormModal({
           {/* Row 2: Model & Authorised Person */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                  Machine Model *
-                </span>
-                <span className="text-[10px] text-cyan-400/90 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-                  Auto-fetched
-                </span>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                Machine Model *
               </label>
               <input
                 type="text"
@@ -485,7 +459,7 @@ export default function MachineFormModal({
                 required
                 value={formData.authorised_person}
                 onChange={e => setFormData({ ...formData, authorised_person: e.target.value })}
-                placeholder="Enter your name (e.g. Aditya)"
+                placeholder="Enter authorised person name"
                 className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700 focus:border-amber-500 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
@@ -493,12 +467,9 @@ export default function MachineFormModal({
 
           {/* Row 3: Plant (Destination): Formatted as "State -- Destination" */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                Plant Destination (State -- Destination) *
-              </span>
-              <span className="text-[10px] text-emerald-400 font-mono">Format: Delhi -- Delhi NCR</span>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-emerald-400" />
+              Plant Destination (State -- Destination) *
             </label>
             <PlantAutocomplete
               value={formData.plant}
@@ -508,93 +479,19 @@ export default function MachineFormModal({
             />
           </div>
 
-          {/* DYNAMIC UNIVERSAL MACHINE SPECIFICATIONS (Collapsible / Editable) */}
-          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
-            <button
-              type="button"
-              onClick={() => setShowTechSpecs(!showTechSpecs)}
-              className="w-full flex items-center justify-between text-left cursor-pointer"
-            >
-              <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                Universal Machine Specifications (Auto-Extracted)
-              </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showTechSpecs ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showTechSpecs && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2 border-t border-slate-800/80 text-xs">
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1">
-                    <Tag className="w-3 h-3 text-cyan-400" />
-                    Machine Type / Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.machine_name}
-                    onChange={e => setFormData({ ...formData, machine_name: e.target.value })}
-                    placeholder="e.g. Induction Motor / Controller"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-amber-400" />
-                    Voltage & Power Ratings
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.voltage_power}
-                    onChange={e => setFormData({ ...formData, voltage_power: e.target.value })}
-                    placeholder="e.g. 400V 3~ | 15 kW"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1">
-                    <Gauge className="w-3 h-3 text-emerald-400" />
-                    Capacity / Operating Rating
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.capacity_rating}
-                    onChange={e => setFormData({ ...formData, capacity_rating: e.target.value })}
-                    placeholder="e.g. 1465 RPM | 10 Bar"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1">
-                    <Globe2 className="w-3 h-3 text-teal-400" />
-                    Country of Origin
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country_of_origin}
-                    onChange={e => setFormData({ ...formData, country_of_origin: e.target.value })}
-                    placeholder="e.g. Germany, Sweden, Japan"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-indigo-400" />
-                    Manufacturing Date
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.mfg_date}
-                    onChange={e => setFormData({ ...formData, mfg_date: e.target.value })}
-                    placeholder="e.g. 10/2024 or 2024"
-                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-            )}
+          {/* Row 3b: Company Name */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-teal-400" />
+              Company Name
+            </label>
+            <input
+              type="text"
+              value={formData.company_name}
+              onChange={e => setFormData({ ...formData, company_name: e.target.value })}
+              placeholder="Enter company name"
+              className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700 focus:border-teal-500 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            />
           </div>
 
           {/* Row 4: Purchasing Date & Warranty Period */}
@@ -644,12 +541,9 @@ export default function MachineFormModal({
 
           {/* Custom Warranty Expiry Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                Warranty Expiry Date
-              </span>
-              <span className="text-[10px] text-slate-400">Can be manually adjusted by calendar</span>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              Warranty Expiry Date
             </label>
             <input
               type="date"

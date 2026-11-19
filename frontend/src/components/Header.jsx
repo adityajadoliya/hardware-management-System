@@ -19,7 +19,7 @@ export default function Header({
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div className="w-full px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -35,17 +35,7 @@ export default function Header({
           <div>
             <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
               HARDWARE MANAGEMENT SYSTEM
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest hidden sm:inline-block">
-                v2.1
-              </span>
             </h1>
-            <p className="text-[11px] text-slate-400 flex items-center gap-2">
-              <span>Automatic Label OCR</span>
-              <span>&bull;</span>
-              <span>State -- Destination Plants</span>
-              <span>&bull;</span>
-              <span>Warranty Tracker</span>
-            </p>
           </div>
         </div>
 

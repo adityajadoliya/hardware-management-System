@@ -43,6 +43,7 @@ try {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       serial_no TEXT UNIQUE NOT NULL COLLATE NOCASE,
       product_company TEXT DEFAULT 'Hikvision',
+      company_name TEXT DEFAULT '',
       model TEXT NOT NULL,
       authorised_person TEXT NOT NULL,
       plant TEXT NOT NULL COLLATE NOCASE,
@@ -62,12 +63,16 @@ try {
     CREATE INDEX IF NOT EXISTS idx_machines_person ON machines(authorised_person);
   `);
 
-  // Migration: Ensure product_company column exists
+  // Migration: Ensure product_company and company_name columns exist
   try {
     const tableInfo = db.prepare("PRAGMA table_info(machines)").all();
     const hasProductCompany = tableInfo.some(col => col.name === 'product_company');
     if (!hasProductCompany) {
       db.prepare("ALTER TABLE machines ADD COLUMN product_company TEXT DEFAULT 'Hikvision'").run();
+    }
+    const hasCompanyName = tableInfo.some(col => col.name === 'company_name');
+    if (!hasCompanyName) {
+      db.prepare("ALTER TABLE machines ADD COLUMN company_name TEXT DEFAULT ''").run();
     }
   } catch (e) {}
 

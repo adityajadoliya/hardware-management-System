@@ -5,7 +5,7 @@ import MachineTable from './components/MachineTable';
 import CameraScannerModal from './components/CameraScannerModal';
 import MachineFormModal from './components/MachineFormModal';
 import MachineDetailModal from './components/MachineDetailModal';
-import { Camera, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'hardware_management_machines_cache';
 
@@ -248,35 +248,7 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
-        {/* Banner Alert with Machine Scanning Action */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-teal-950/60 border border-emerald-500/30 p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-emerald-500/20 text-emerald-400">
-                <Sparkles className="w-4 h-4" />
-              </span>
-              <h2 className="text-sm sm:text-base font-bold text-white">
-                Live Machine Label Recognition Ready
-              </h2>
-            </div>
-            <p className="text-xs text-slate-300 max-w-xl">
-              Point your camera at any hardware machine label (e.g. Model <span className="font-mono text-cyan-300">DS-KIT302EFWX</span>, Serial <span className="font-mono text-emerald-300">GS3762838</span>). The system will automatically fetch details, ask for the <span className="text-white font-medium">Authorised Person</span> & <span className="text-white font-medium">Destination Plant</span>, and calculate pending warranty days.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Scan Specific Machine Label */}
-            <button
-              onClick={() => setIsScannerOpen(true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/30 transition-all cursor-pointer"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Scan Machine Label</span>
-            </button>
-          </div>
-        </div>
-
+      <main className="w-full px-4 sm:px-6 py-5 space-y-5 flex-1">
         {/* Dashboard Metrics */}
         <StatsCards stats={stats} />
 
@@ -300,8 +272,8 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/90 py-4 text-center text-xs text-slate-500">
-        <p>Hardware Management System &bull; Intelligent Camera OCR & Asset Warranty Engine &bull; {new Date().getFullYear()}</p>
+      <footer className="border-t border-slate-900 bg-slate-950/90 py-3 text-center text-xs text-slate-500">
+        <p>Hardware Management System &bull; {new Date().getFullYear()}</p>
       </footer>
 
       {/* Camera Scanner Modal */}

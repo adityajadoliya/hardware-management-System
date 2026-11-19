@@ -169,11 +169,11 @@ app.get('/api/machines', (req, res) => {
 
     if (search && search.trim()) {
       const s = `%${search.trim()}%`;
-      query += ' AND (serial_no LIKE ? OR product_company LIKE ? OR model LIKE ? OR authorised_person LIKE ? OR plant LIKE ? OR notes LIKE ?)';
-      params.push(s, s, s, s, s, s);
+      query += ' AND (serial_no LIKE ? OR product_company LIKE ? OR company_name LIKE ? OR model LIKE ? OR authorised_person LIKE ? OR plant LIKE ? OR notes LIKE ?)';
+      params.push(s, s, s, s, s, s, s);
     }
 
-    const allowedSort = ['id', 'serial_no', 'product_company', 'model', 'plant', 'authorised_person', 'purchase_date', 'warranty_expiry_date', 'created_at'];
+    const allowedSort = ['id', 'serial_no', 'product_company', 'company_name', 'model', 'plant', 'authorised_person', 'purchase_date', 'warranty_expiry_date', 'created_at'];
     const safeSort = allowedSort.includes(sort_by) ? sort_by : 'created_at';
     const safeOrder = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
@@ -221,6 +221,7 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
     let {
       serial_no,
       product_company = 'Hikvision',
+      company_name = '',
       model,
       authorised_person,
       plant,
@@ -239,8 +240,12 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
       return res.status(400).json({ error: 'Serial number is required' });
     }
     product_company = (product_company || 'Hikvision').trim();
+    company_name = (company_name || '').trim();
     model = (model || 'DS-KIT302EFWX').trim();
-    authorised_person = (authorised_person || 'Aditya Sharma').trim();
+    authorised_person = (authorised_person || '').trim();
+    if (!authorised_person) {
+      return res.status(400).json({ error: 'Authorised person is required' });
+    }
     plant = (plant || 'Gujarat -- Gujarat Plant').trim();
     purchase_date = (purchase_date || new Date().toISOString().split('T')[0]).trim();
 
@@ -270,6 +275,7 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
       const stmt = db.prepare(`
         UPDATE machines SET
           product_company = ?,
+          company_name = ?,
           model = ?,
           authorised_person = ?,
           plant = ?,
@@ -286,6 +292,7 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
 
       stmt.run(
         product_company,
+        company_name,
         model,
         authorised_person,
         plant,
@@ -308,15 +315,16 @@ app.post('/api/machines', upload.single('label_image'), (req, res) => {
     // Insert new machine record
     const stmt = db.prepare(`
       INSERT INTO machines (
-        serial_no, product_company, model, authorised_person, plant,
+        serial_no, product_company, company_name, model, authorised_person, plant,
         purchase_date, warranty_expiry_date, warranty_months,
         status, label_image, notes, raw_scan_text
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
       serial_no,
       product_company,
+      company_name,
       model,
       authorised_person,
       plant,
@@ -351,6 +359,7 @@ app.put('/api/machines/:id', upload.single('label_image'), (req, res) => {
     let {
       serial_no,
       product_company,
+      company_name,
       model,
       authorised_person,
       plant,
@@ -364,6 +373,7 @@ app.put('/api/machines/:id', upload.single('label_image'), (req, res) => {
 
     serial_no = (serial_no || existing.serial_no).trim();
     product_company = (product_company || existing.product_company || 'Hikvision').trim();
+    company_name = company_name !== undefined ? String(company_name).trim() : (existing.company_name || '');
     model = (model || existing.model).trim();
     authorised_person = (authorised_person || existing.authorised_person).trim();
     plant = (plant || existing.plant).trim();
@@ -396,6 +406,7 @@ app.put('/api/machines/:id', upload.single('label_image'), (req, res) => {
       UPDATE machines SET
         serial_no = ?,
         product_company = ?,
+        company_name = ?,
         model = ?,
         authorised_person = ?,
         plant = ?,
@@ -410,6 +421,7 @@ app.put('/api/machines/:id', upload.single('label_image'), (req, res) => {
     `).run(
       serial_no,
       product_company,
+      company_name,
       model,
       authorised_person,
       plant,
@@ -487,6 +499,7 @@ app.get('/api/export/csv', (req, res) => {
       'Serial No',
       'Product Company',
       'Model',
+      'Company Name',
       'Plant (Destination)',
       'Authorised Person',
       'Purchase Date',
@@ -509,6 +522,7 @@ app.get('/api/export/csv', (req, res) => {
       m.serial_no,
       m.product_company,
       m.model,
+      m.company_name || '',
       m.plant,
       m.authorised_person,
       m.purchase_date,
